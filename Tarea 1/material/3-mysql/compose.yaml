@@ -1,0 +1,65 @@
+# ---------------------------------------------------------------------------
+# Tarea 1 · Ejercicio 4 · Stack MySQL + phpMyAdmin
+# UEA 1151055 · Administración de Proyectos de Software · Trimestre 26-O
+#
+# Es el MISMO patrón que el compose.yaml de PostgreSQL, con otra base de
+# datos y otra interfaz web. Hay 11 huecos marcados con rayas: llénelos con
+# la tabla de equivalencias de la GUIA.md, sección «Fase C». No hace falta
+# Dockerfile: las imágenes oficiales ya traen todo lo necesario.
+#
+#   docker compose up -d       prender
+#   docker compose ps          debe decir (healthy) en la base
+#   http://localhost:8081      phpMyAdmin
+#   docker compose stop        apagar
+# ---------------------------------------------------------------------------
+
+name: tarea1-mysql
+
+services:
+
+  db:
+    # MySQL, versión LTS con el número completo. Nunca «latest».
+    image: ________
+    container_name: tarea1_mysql
+
+    environment:
+      # Las cuatro variables que espera la imagen de MySQL.
+      # La de root es OBLIGATORIA: sin ella, el contenedor no arranca.
+      ________: ${MYSQL_ROOT_PASSWORD:-raiz_local_26o}
+      ________: ${MYSQL_DATABASE:-proyecto}
+      ________: ${MYSQL_USER:-proyecto}
+      ________: ${MYSQL_PASSWORD:-practica_local_26o}
+
+    ports:
+      # mi máquina : contenedor. El de la derecha es el puerto de MySQL.
+      - "127.0.0.1:${MYSQL_PORT:-3307}:________"
+
+    volumes:
+      # Volumen con nombre : la carpeta donde MySQL guarda sus datos.
+      - datos_mysql:________
+
+    healthcheck:
+      # Ya está escrito: pregunta a MySQL si responde por la red.
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  phpmyadmin:
+    # phpMyAdmin, versión completa fijada.
+    image: ________
+    container_name: tarea1_phpmyadmin
+    ports:
+      # phpMyAdmin escucha DENTRO en el puerto 80.
+      - "127.0.0.1:${PMA_PORT:-8081}:________"
+    environment:
+      # A qué servidor se conecta: el NOMBRE del servicio de la base.
+      PMA_HOST: ________
+    depends_on:
+      db:
+        # Que espere a que la base esté sana, no sólo a que exista.
+        condition: ________
+
+volumes:
+  datos_mysql:

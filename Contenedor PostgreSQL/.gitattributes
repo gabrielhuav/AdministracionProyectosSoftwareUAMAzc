@@ -1,0 +1,9 @@
+# Los scripts se ejecutan DENTRO del contenedor, que es Linux.
+# Sin esta regla, Git en Windows los guarda con finales de linea CRLF
+# y bash falla al ejecutarlos con un error confuso:
+#     bash: extras/comprobar.sh: cannot execute: required file not found
+# o bien   : command not found   con un renglon aparentemente vacio.
+*.sh        text eol=lf
+*.sql       text eol=lf
+compose.yaml text eol=lf
+Dockerfile  text eol=lf

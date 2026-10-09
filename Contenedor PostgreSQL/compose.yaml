@@ -1,0 +1,105 @@
+# ---------------------------------------------------------------------------
+# Contenedor de prueba · PostgreSQL 18
+# UEA 1151055 · Administración de Proyectos de Software · Trimestre 26-O
+# UAM Azcapotzalco · Departamento de Sistemas
+#
+#   docker compose up -d             prender (la primera vez, construye sola)
+#   docker compose exec db bash      entrar a trabajar (en una nueva terminal)
+#   bash extras/comprobar.sh         comprobar el entorno (ya dentro, en la
+#                                    terminal del paso anterior)
+#   docker compose stop              apagar
+#
+# No hace falta preparar nada antes: sin archivo .env, los valores de
+# abajo traen un valor por defecto y el contenedor levanta igual.
+#
+# El archivo se llama compose.yaml: es el nombre que recomienda la
+# Compose Specification. El docker-compose.yml con guion es el nombre
+# antiguo, de cuando Compose era un programa aparte escrito en Python.
+# No lleva la clave «version:»: Compose V2 la ignora y avisa que es obsoleta.
+# ---------------------------------------------------------------------------
+
+# Nombre del proyecto. Sin esto, Compose usa el nombre de la carpeta, que
+# cambia de una computadora a otra y produce contenedores duplicados.
+name: apsw-1151055-contenedor
+
+services:
+
+  db:
+    # build: construye con el Dockerfile de esta carpeta.
+    # image: el nombre que tendrá la imagen ya construida en tu máquina.
+    # Cuando aparecen las dos, image: no es de dónde se baja: es cómo se
+    # va a llamar la tuya.
+    build: .
+    image: postgres-1151055:26o
+
+    container_name: apsw_db
+    restart: unless-stopped
+
+    environment:
+      # El :-valor del final es un VALOR POR DEFECTO: si no existe el
+      # archivo .env, se usa el de la derecha y el contenedor levanta
+      # igual. Así «docker compose up -d» funciona a la primera, sin
+      # ningún paso previo.
+      #
+      # En cuanto creas un .env, lo que pongas ahí gana sobre estos
+      # valores. Para el proyecto de tu equipo, hazlo: una contraseña
+      # escrita en un archivo que se versiona es justo lo que no se debe
+      # hacer, y aquí sólo se tolera porque es un contenedor de práctica
+      # publicado únicamente en 127.0.0.1.
+      POSTGRES_DB: ${POSTGRES_DB:-proyecto}
+      POSTGRES_USER: ${POSTGRES_USER:-proyecto}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-practica_local_26o}
+      # Colación y codificación explícitas: dos equipos ordenan igual.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+
+    ports:
+      # host : contenedor. El 127.0.0.1 del principio publica el puerto
+      # SÓLO en esta máquina; sin él, la base queda expuesta a la red local.
+      # Si el 5434 está ocupado, se cambia el de la IZQUIERDA en el .env.
+      - "127.0.0.1:${POSTGRES_PORT:-5434}:5432"
+
+    volumes:
+      # ⚠️ PostgreSQL 18 cambió el punto de montaje.
+      #    17 y anteriores:  /var/lib/postgresql/data
+      #    18 en adelante:   /var/lib/postgresql   (PGDATA=/var/lib/postgresql/18/docker)
+      # Montar la ruta vieja con la imagen 18 hace que el contenedor
+      # NO arranque: sale con código 1 y el log empieza con «Error: in 18+».
+      - datos_db:/var/lib/postgresql
+
+      # Scripts que se ejecutan UNA sola vez, cuando el volumen está vacío.
+      # Si ya hay datos, esta carpeta se ignora por completo.
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+
+      # Esta carpeta del proyecto, vista desde dentro del contenedor.
+      # Es lo que permite ejecutar «bash extras/comprobar.sh» ya dentro.
+      - ./:/trabajo
+
+    # Al entrar con exec, apareces aquí.
+    working_dir: /trabajo
+
+    healthcheck:
+      # $$ escapa el $ para que lo resuelva el shell del contenedor y no Compose.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  adminer:
+    # Interfaz web para ver la base sin instalar nada en la máquina.
+    image: adminer:5.5.1
+    container_name: apsw_adminer
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${ADMINER_PORT:-8080}:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+    depends_on:
+      db:
+        # No basta con que el contenedor exista: espera a que la base responda.
+        condition: service_healthy
+
+volumes:
+  # Volumen con NOMBRE, administrado por Docker. Sobrevive a down,
+  # pero «docker compose down -v» sí lo borra.
+  datos_db:
